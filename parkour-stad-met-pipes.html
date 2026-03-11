@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PARKOUR STAD - Geheime Pipe Levels!</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body { 
+    margin: 0; 
+    overflow: hidden; 
+    font-family: Arial, sans-serif;
+    width: 100vw;
+    height: 100vh;
+  }
+  #gameContainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  #ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    font-size: 16px;
+    pointer-events: none;
+    z-index: 100;
+    background: rgba(0,0,0,0.5);
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid gold;
+  }
+  #mission {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 100;
+    background: rgba(255, 215, 0, 0.3);
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid gold;
+    max-width: 300px;
+  }
+  #info {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0,0,0,0.6);
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+  }
+  .status {
+    padding: 4px 8px;
+    border-radius: 5px;
+    display: inline-block;
+    margin: 2px 0;
+    font-size: 14px;
+  }
+  .boost-active {
+    background: rgba(255, 215, 0, 0.4);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .health-bar {
+    background: rgba(255, 0, 0, 0.3);
+    border: 2px solid #ff0000;
+    height: 20px;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 5px;
+  }
+  .health-fill {
+    background: linear-gradient(90deg, #ff0000, #ff6666);
+    height: 100%;
+    transition: width 0.3s;
+  }
+  #victory-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    flex-direction: column;
+  }
+  .victory-content {
+    text-align: center;
+    color: gold;
+    animation: victory-appear 1s ease-out;
+  }
+  @keyframes victory-appear {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  #locationIndicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.9);
+    color: white;
+    padding: 25px 50px;
+    border-radius: 15px;
+    font-size: 32px;
+    z-index: 200;
+    display: none;
+    animation: fadeInOut 3s;
+    border: 4px solid gold;
+    font-weight: bold;
+    text-align: center;
+  }
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    20% { transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  }
+  #warpIndicator {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 255, 0, 0.9);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    display: none;
+    z-index: 150;
+    animation: bounce 0.6s infinite;
+    border: 3px solid #00ff00;
+    box-shadow: 0 0 20px rgba(0,255,0,0.5);
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-15px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <div id="ui">
+    <div style="font-size: 18px; color: gold; margin-bottom: 8px;">⭐ STATUS</div>
+    <div class="status" id="speedBox">🏃 <span id="speedStatus">Normaal</span></div>
+    <div class="status" id="jumpBox">⬆️ <span id="jumpStatus">Normaal</span></div>
+    <div>🎯 Boosts: <span id="boostCount">0</span></div>
+    <div>👾 Monsters: <span id="monsterCount">0</span>/<span id="totalMonsters">25</span></div>
+    <div>🔑 Sleutels: <span id="keyCount">0</span>/5</div>
+    <div>⭐ Stars: <span id="starCount">0</span>/<span id="totalStars">8</span></div>
+    <div>❤️ HP: <span id="healthText">100</span>/100</div>
+    <div class="health-bar">
+      <div class="health-fill" id="healthBar" style="width: 100%"></div>
+    </div>
+    <div style="margin-top: 8px; font-size: 13px; color: #ffff00;">
+      📍 <span id="locationText">Buiten - Downtown</span>
+    </div>
+  </div>
+
+  <div id="mission">
+    <div style="font-size: 18px; color: gold; margin-bottom: 8px;">🎯 MISSIE</div>
+    <div id="missionText" style="line-height: 1.6; font-size: 13px;">
+      <strong>Level 1:</strong> Verzamel 5 Sleutels!<br>
+      💡 Versla monsters!<br>
+      🟢 Ga in pipes voor PARKOUR!<br>
+      ⭐ Verzamel sterren in levels!
+    </div>
+  </div>
+
+  <div id="info">
+    <strong>Besturing:</strong> Z/S/Q/D of Pijltjes = Lopen | SPATIE = Springen | E bij pipe = Ga binnen!<br>
+    <small>Muis = Kijken | Muiswiel = Zoom | <strong style="color: #ffff00;">R in parkour = RESET!</strong> 👾</small>
+  </div>
+
+  <div id="locationIndicator"></div>
+  <div id="warpIndicator">🟢 Druk E om in de pipe te gaan! 🟢</div>
+
+  <div id="victory-screen">
+    <div class="victory-content">
+      <div style="font-size: 100px;">🏆</div>
+      <h1 style="font-size: 48px; margin: 20px;">MISSIE GESLAAGD!</h1>
+      <p style="font-size: 20px;">Je hebt de Stad Gered!</p>
+      <p style="font-size: 18px; color: #ffd700;">
+        🏆 Trofee Verzameld!<br>
+        ⭐ <span id="finalStars">0</span> Sterren Verzameld<br>
+        👾 <span id="finalMonsters">0</span> Monsters Verslagen<br>
+        🎯 <span id="finalBoosts">0</span> Boosts Verzameld<br>
+        💯 Score: <span id="finalScore">0</span> punten
+      </p>
+      <button onclick="location.reload()" style="
+        margin-top: 20px;
+        padding: 12px 30px;
+        font-size: 20px;
+        background: linear-gradient(135deg, gold, orange);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(255,215,0,0.5);
+      ">SPEEL OPNIEUW! 🎮</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+<script>
+// UI elementen
+const speedStatus = document.getElementById('speedStatus');
+const jumpStatus = document.getElementById('jumpStatus');
+const boostCount = document.getElementById('boostCount');
+const monsterCount = document.getElementById('monsterCount');
+const totalMonstersEl = document.getElementById('totalMonsters');
+const keyCount = document.getElementById('keyCount');
+const starCount = document.getElementById('starCount');
+const totalStarsEl = document.getElementById('totalStars');
+const healthText = document.getElementById('healthText');
+const healthBar = document.getElementById('healthBar');
+const speedBox = document.getElementById('speedBox');
+const jumpBox = document.getElementById('jumpBox');
+const missionText = document.getElementById('missionText');
+const victoryScreen = document.getElementById('victory-screen');
+const locationText = document.getElementById('locationText');
+const locationIndicator = document.getElementById('locationIndicator');
+const warpIndicator = document.getElementById('warpIndicator');
+
+// Game state
+let totalBoosts = 0;
+let monstersDefeated = 0;
+let keysCollected = 0;
+let starsCollected = 0;
+let playerHealth = 100;
+let trophySpawned = false;
+let nearPipe = null;
+let isInParkour = false;
+let currentParkourLevel = null;
+let exitPipePosition = null;
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 100, 400);
+
+const gameContainer = document.getElementById('gameContainer');
+const camera = new THREE.PerspectiveCamera(75, gameContainer.clientWidth / gameContainer.clientHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(gameContainer.clientWidth, gameContainer.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+gameContainer.appendChild(renderer.domElement);
+
+// Licht
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(100, 150, 100);
+sun.castShadow = true;
+sun.shadow.camera.left = -200;
+sun.shadow.camera.right = 200;
+sun.shadow.camera.top = 200;
+sun.shadow.camera.bottom = -200;
+sun.shadow.mapSize.width = 2048;
+sun.shadow.mapSize.height = 2048;
+scene.add(sun);
+
+// Vloer
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(800, 800),
+  new THREE.MeshPhongMaterial({ color: 0x3a5a3a, shininess: 10 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Straten
+function maakStraat(x, z, breedte, lengte, richting) {
+  const straat = new THREE.Mesh(
+    richting === 'horizontal' 
+      ? new THREE.PlaneGeometry(lengte, breedte)
+      : new THREE.PlaneGeometry(breedte, lengte),
+    new THREE.MeshPhongMaterial({ color: 0x333333, shininess: 5 })
+  );
+  straat.rotation.x = -Math.PI / 2;
+  straat.position.set(x, 0.02, z);
+  straat.receiveShadow = true;
+  scene.add(straat);
+
+  const lijnen = new THREE.Mesh(
+    richting === 'horizontal'
+      ? new THREE.PlaneGeometry(lengte, 0.3)
+      : new THREE.PlaneGeometry(0.3, lengte),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  lijnen.rotation.x = -Math.PI / 2;
+  lijnen.position.set(x, 0.03, z);
+  scene.add(lijnen);
+}
+
+maakStraat(0, 0, 18, 700, 'horizontal');
+maakStraat(0, 0, 18, 700, 'vertical');
+maakStraat(80, 0, 14, 700, 'vertical');
+maakStraat(-80, 0, 14, 700, 'vertical');
+maakStraat(0, 80, 14, 700, 'horizontal');
+maakStraat(0, -80, 14, 700, 'horizontal');
+
+// Speler
+let player = new THREE.Vector3(0, 1, 0);
+let playerVelocity = new THREE.Vector3(0, 0, 0);
+const playerBall = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 32),
+  new THREE.MeshPhongMaterial({ color: 0xff0000, shininess: 100 })
+);
+playerBall.position.copy(player);
+playerBall.castShadow = true;
+scene.add(playerBall);
+
+// Gebouwen
+const gebouwen = [];
+const warpPipes = [];
+const parkourLevels = [];
+
+function showLocation(text) {
+  locationIndicator.innerHTML = text;
+  locationIndicator.style.display = 'block';
+  setTimeout(() => {
+    locationIndicator.style.display = 'none';
+  }, 3000);
+}
+
+// PARKOUR LEVEL CREATOR! 🎮
+function maakParkourLevel(naam, kleur, moeilijkheid) {
+  const level = new THREE.Group();
+  level.visible = false;
+  
+  // Achtergrond kleur
+  const bgKleur = kleur === 0x00ff00 ? 0x001a00 : kleur === 0xff0000 ? 0x1a0000 : 0x00001a;
+  
+  // Vloer (SOLID - je kunt niet doorheen!)
+  const vloer = new THREE.Mesh(
+    new THREE.PlaneGeometry(100, 100),
+    new THREE.MeshPhongMaterial({ color: bgKleur })
+  );
+  vloer.rotation.x = -Math.PI / 2;
+  vloer.position.y = -5;
+  vloer.receiveShadow = true;
+  level.add(vloer);
+  level.userData.vloer = vloer;
+  
+  // Muren
+  const muurMateriaal = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
+  
+  const noordMuur = new THREE.Mesh(new THREE.PlaneGeometry(100, 50), muurMateriaal);
+  noordMuur.position.set(0, 20, -50);
+  level.add(noordMuur);
+  
+  const zuidMuur = new THREE.Mesh(new THREE.PlaneGeometry(100, 50), muurMateriaal);
+  zuidMuur.position.set(0, 20, 50);
+  zuidMuur.rotation.y = Math.PI;
+  level.add(zuidMuur);
+  
+  const oostMuur = new THREE.Mesh(new THREE.PlaneGeometry(100, 50), muurMateriaal);
+  oostMuur.position.set(50, 20, 0);
+  oostMuur.rotation.y = -Math.PI / 2;
+  level.add(oostMuur);
+  
+  const westMuur = new THREE.Mesh(new THREE.PlaneGeometry(100, 50), muurMateriaal);
+  westMuur.position.set(-50, 20, 0);
+  westMuur.rotation.y = Math.PI / 2;
+  level.add(westMuur);
+  
+  // Plafond
+  const plafond = new THREE.Mesh(
+    new THREE.PlaneGeometry(100, 100),
+    new THREE.MeshPhongMaterial({ color: 0x222222, side: THREE.DoubleSide })
+  );
+  plafond.rotation.x = Math.PI / 2;
+  plafond.position.y = 45;
+  level.add(plafond);
+  
+  // Verlichting binnen
+  const light1 = new THREE.PointLight(kleur, 1.5, 60);
+  light1.position.set(-20, 30, 0);
+  light1.castShadow = true;
+  level.add(light1);
+  
+  const light2 = new THREE.PointLight(kleur, 1.5, 60);
+  light2.position.set(20, 30, 0);
+  light2.castShadow = true;
+  level.add(light2);
+  
+  // PARKOUR PLATFORMS! 🎯
+  const platformMateriaal = new THREE.MeshPhongMaterial({ 
+    color: kleur,
+    emissive: kleur,
+    emissiveIntensity: 0.3
+  });
+  
+  if (moeilijkheid === 'makkelijk') {
+    // Level 1: MAKKELIJKE parkour - grote platforms, korte afstanden!
+    // Start platform (EXTRA GROOT zodat je altijd kunt landen!)
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), platformMateriaal);
+    p1.position.set(-35, 0, 0);
+    p1.castShadow = true;
+    p1.receiveShadow = true;
+    level.add(p1);
+    
+    // Platform 2 (dichtbij!)
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(9, 1, 9), platformMateriaal);
+    p2.position.set(-22, 2, 0);
+    p2.castShadow = true;
+    p2.receiveShadow = true;
+    level.add(p2);
+    
+    // Platform 3
+    const p3 = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 8), platformMateriaal);
+    p3.position.set(-10, 4, 3);
+    p3.castShadow = true;
+    p3.receiveShadow = true;
+    level.add(p3);
+    
+    // Platform 4
+    const p4 = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 8), platformMateriaal);
+    p4.position.set(3, 6, 0);
+    p4.castShadow = true;
+    p4.receiveShadow = true;
+    level.add(p4);
+    
+    // Platform 5
+    const p5 = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 8), platformMateriaal);
+    p5.position.set(16, 8, -3);
+    p5.castShadow = true;
+    p5.receiveShadow = true;
+    level.add(p5);
+    
+    // Final platform met ster (groot!)
+    const p6 = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 10), platformMateriaal);
+    p6.position.set(30, 10, 0);
+    p6.castShadow = true;
+    p6.receiveShadow = true;
+    level.add(p6);
+    
+  } else if (moeilijkheid === 'medium') {
+    // Level 2: Medium parkour
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), platformMateriaal);
+    p1.position.set(-35, 0, 0);
+    p1.castShadow = true;
+    level.add(p1);
+    
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 7), platformMateriaal);
+    p2.position.set(-23, 3, -5);
+    p2.castShadow = true;
+    level.add(p2);
+    
+    const p3 = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 7), platformMateriaal);
+    p3.position.set(-12, 6, 0);
+    p3.castShadow = true;
+    level.add(p3);
+    
+    const p4 = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), platformMateriaal);
+    p4.position.set(-1, 9, 5);
+    p4.castShadow = true;
+    level.add(p4);
+    
+    const p5 = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 7), platformMateriaal);
+    p5.position.set(10, 12, 0);
+    p5.castShadow = true;
+    level.add(p5);
+    
+    const p6 = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 7), platformMateriaal);
+    p6.position.set(21, 15, -5);
+    p6.castShadow = true;
+    level.add(p6);
+    
+    const p7 = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 10), platformMateriaal);
+    p7.position.set(33, 17, 0);
+    p7.castShadow = true;
+    level.add(p7);
+    
+  } else {
+    // Level 3: Moeilijke parkour
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), platformMateriaal);
+    p1.position.set(-35, 0, 0);
+    p1.castShadow = true;
+    level.add(p1);
+    
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), platformMateriaal);
+    p2.position.set(-24, 4, -6);
+    p2.castShadow = true;
+    level.add(p2);
+    
+    const p3 = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), platformMateriaal);
+    p3.position.set(-14, 8, 0);
+    p3.castShadow = true;
+    level.add(p3);
+    
+    const p4 = new THREE.Mesh(new THREE.BoxGeometry(5, 1, 5), platformMateriaal);
+    p4.position.set(-4, 12, 6);
+    p4.castShadow = true;
+    level.add(p4);
+    
+    const p5 = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), platformMateriaal);
+    p5.position.set(6, 16, 0);
+    p5.castShadow = true;
+    level.add(p5);
+    
+    const p6 = new THREE.Mesh(new THREE.BoxGeometry(5, 1, 5), platformMateriaal);
+    p6.position.set(16, 20, -6);
+    p6.castShadow = true;
+    level.add(p6);
+    
+    const p7 = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), platformMateriaal);
+    p7.position.set(25, 23, 0);
+    p7.castShadow = true;
+    level.add(p7);
+    
+    const p8 = new THREE.Mesh(new THREE.BoxGeometry(9, 1, 9), platformMateriaal);
+    p8.position.set(36, 26, 0);
+    p8.castShadow = true;
+    level.add(p8);
+  }
+  
+  // STER op laatste platform! ⭐
+  const ster = new THREE.Mesh(
+    new THREE.SphereGeometry(1.2, 16, 16),
+    new THREE.MeshPhongMaterial({
+      color: 0xffff00,
+      emissive: 0xffff00,
+      emissiveIntensity: 1
+    })
+  );
+  const sterHoogte = moeilijkheid === 'makkelijk' ? 12.5 : moeilijkheid === 'medium' ? 19.5 : 28.5;
+  ster.position.set(moeilijkheid === 'makkelijk' ? 30 : moeilijkheid === 'medium' ? 33 : 36, sterHoogte, 0);
+  ster.castShadow = true;
+  level.add(ster);
+  level.userData.ster = ster;
+  level.userData.sterVerzameld = false;
+  
+  // EXIT PIPE (om terug te gaan)
+  const exitPipe = new THREE.Mesh(
+    new THREE.CylinderGeometry(2, 2, 6, 16),
+    new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 80 })
+  );
+  exitPipe.rotation.z = Math.PI / 2;
+  exitPipe.position.set(-43, 3, 0);
+  exitPipe.castShadow = true;
+  level.add(exitPipe);
+  level.userData.exitPipe = exitPipe;
+  
+  scene.add(level);
+  
+  return level;
+}
+
+// Maak gebouw met pipe
+function maakGebouwMetPipe(x, z, levelNaam, kleur, moeilijkheid) {
+  const hoogte = 40;
+  const breedte = 20;
+  const diepte = 20;
+  
+  // Gebouw
+  const gebouw = new THREE.Mesh(
+    new THREE.BoxGeometry(breedte, hoogte, diepte),
+    new THREE.MeshPhongMaterial({ color: 0x2a4a6a, shininess: 80 })
+  );
+  gebouw.position.set(x, hoogte / 2, z);
+  gebouw.castShadow = true;
+  gebouw.receiveShadow = true;
+  scene.add(gebouw);
+  
+  // Ramen
+  for (let laag = 0; laag < 12; laag++) {
+    for (let rij = 0; rij < 5; rij++) {
+      const raam = new THREE.Mesh(
+        new THREE.BoxGeometry(2.5, 2, 0.2),
+        new THREE.MeshPhongMaterial({ 
+          color: 0x4a9aff, 
+          emissive: 0x2a5a8a, 
+          emissiveIntensity: 0.4 
+        })
+      );
+      raam.position.set(x - 6 + rij * 3, laag * 3 + 1.5, z + diepte/2 + 0.1);
+      scene.add(raam);
+    }
+  }
+  
+  // HORIZONTALE PIPE TEGEN DE MUUR! 🟢
+  const pipeGroup = new THREE.Group();
+  
+  // Hoofd cilinder (horizontaal!)
+  const pipe = new THREE.Mesh(
+    new THREE.CylinderGeometry(2, 2, 5, 16),
+    new THREE.MeshPhongMaterial({ color: kleur, shininess: 100 })
+  );
+  pipe.rotation.z = Math.PI / 2; // HORIZONTAAL!
+  pipe.castShadow = true;
+  pipeGroup.add(pipe);
+  
+  // Lip aan de VOORKANT (naar de speler toe)
+  const lip = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.5, 2, 0.8, 16),
+    new THREE.MeshPhongMaterial({ 
+      color: kleur === 0x00ff00 ? 0x00cc00 : kleur === 0xff0000 ? 0xcc0000 : kleur === 0x0000ff ? 0x0000cc : 0xcccc00,
+      shininess: 100 
+    })
+  );
+  lip.rotation.z = Math.PI / 2;
+  lip.position.set(-2.9, 0, 0); // NAAR VOREN (van de muur af)
+  lip.castShadow = true;
+  pipeGroup.add(lip);
+  
+  // Zwart gat (opening naar de speler)
+  const opening = new THREE.Mesh(
+    new THREE.CircleGeometry(1.8, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000 })
+  );
+  opening.rotation.y = -Math.PI / 2; // DRAAI NAAR DE SPELER
+  opening.position.set(-3, 0, 0); // VOORKANT
+  pipeGroup.add(opening);
+  
+  // Glow effect
+  const glow = new THREE.Mesh(
+    new THREE.CylinderGeometry(3, 3, 6, 16),
+    new THREE.MeshBasicMaterial({ color: kleur, transparent: true, opacity: 0.3 })
+  );
+  glow.rotation.z = Math.PI / 2;
+  pipeGroup.add(glow);
+  
+  // Positioneer pipe TEGEN de muur (achterkant plat tegen muur)
+  pipeGroup.position.set(x, 5, z + diepte/2 + 0.5);
+  scene.add(pipeGroup);
+  
+  // Maak parkour level
+  const parkourLevel = maakParkourLevel(levelNaam, kleur, moeilijkheid);
+  
+  warpPipes.push({
+    mesh: pipeGroup,
+    x: x,
+    z: z + diepte/2 + 0.5,
+    naam: levelNaam,
+    kleur: kleur,
+    parkourLevel: parkourLevel,
+    glow: glow
+  });
+  
+  gebouwen.push({
+    mesh: gebouw,
+    x: x,
+    z: z,
+    breedte: breedte,
+    diepte: diepte
+  });
+}
+
+// BOUW GEBOUWEN MET PIPE PARKOUR LEVELS! 🏢🟢
+maakGebouwMetPipe(80, 80, '🟢 Groen Level - Makkelijk', 0x00ff00, 'makkelijk');
+maakGebouwMetPipe(-80, 80, '🔴 Rood Level - Medium', 0xff0000, 'medium');
+maakGebouwMetPipe(80, -80, '🔵 Blauw Level - Moeilijk', 0x0000ff, 'moeilijk');
+maakGebouwMetPipe(-80, -80, '🟡 Geel Level - Medium', 0xffff00, 'medium');
+maakGebouwMetPipe(160, 40, '🟢 Groen Level 2 - Makkelijk', 0x00ff00, 'makkelijk');
+maakGebouwMetPipe(-160, -40, '🔴 Rood Level 2 - Moeilijk', 0xff0000, 'moeilijk');
+maakGebouwMetPipe(40, 160, '🔵 Blauw Level 2 - Medium', 0x0000ff, 'medium');
+maakGebouwMetPipe(-40, -160, '🟡 Geel Level 2 - Moeilijk', 0xffff00, 'moeilijk');
+
+// Gewone gebouwen (zonder overlap!)
+const gebouwPosities = [
+  [120, 120], [-120, -120], [150, -50], [-150, 50],
+  [200, 100], [-200, -100], [100, 200], [-100, -200],
+  [180, -120], [-180, 120], [250, 0], [-250, 0],
+  [0, 250], [0, -250], [220, -180], [-220, 180],
+  [140, -200], [-140, 200], [280, -80], [-280, 80]
+];
+
+gebouwPosities.forEach(pos => {
+  const hoogte = 25 + Math.random() * 30;
+  const gebouw = new THREE.Mesh(
+    new THREE.BoxGeometry(15, hoogte, 15),
+    new THREE.MeshPhongMaterial({ color: 0x666666 })
+  );
+  gebouw.position.set(pos[0], hoogte / 2, pos[1]);
+  gebouw.castShadow = true;
+  scene.add(gebouw);
+  
+  gebouwen.push({
+    mesh: gebouw,
+    x: pos[0],
+    z: pos[1],
+    breedte: 15,
+    diepte: 15
+  });
+});
+
+// MONSTERTJES
+const monsters = [];
+const TOTAL_MONSTERS = 25;
+totalMonstersEl.textContent = TOTAL_MONSTERS;
+
+function maakMonster(x, z) {
+  const lichaam = new THREE.Mesh(
+    new THREE.SphereGeometry(1.2, 16, 16),
+    new THREE.MeshPhongMaterial({ color: Math.random() > 0.5 ? 0xff69b4 : 0x9370db, shininess: 80 })
+  );
+  
+  const oogL = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 8, 8),
+    new THREE.MeshPhongMaterial({ color: 0xffffff })
+  );
+  oogL.position.set(-0.4, 0.4, 1);
+  lichaam.add(oogL);
+  
+  const pupilL = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 8, 8),
+    new THREE.MeshPhongMaterial({ color: 0x000000 })
+  );
+  pupilL.position.set(0, 0, 0.2);
+  oogL.add(pupilL);
+  
+  const oogR = oogL.clone();
+  oogR.position.set(0.4, 0.4, 1);
+  lichaam.add(oogR);
+  
+  const antenneL = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 1, 8),
+    new THREE.MeshPhongMaterial({ color: 0xffd700 })
+  );
+  antenneL.position.set(-0.5, 1.2, 0);
+  lichaam.add(antenneL);
+  
+  const bolletjeL = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 8, 8),
+    new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5 })
+  );
+  bolletjeL.position.set(0, 0.5, 0);
+  antenneL.add(bolletjeL);
+  
+  const antenneR = antenneL.clone();
+  antenneR.position.set(0.5, 1.2, 0);
+  lichaam.add(antenneR);
+  
+  lichaam.position.set(x, 1.2, z);
+  lichaam.castShadow = true;
+  scene.add(lichaam);
+  
+  monsters.push({
+    mesh: lichaam,
+    x: x,
+    z: z,
+    richting: Math.random() * Math.PI * 2,
+    snelheid: 0.1,
+    health: 3
+  });
+}
+
+for (let i = 0; i < TOTAL_MONSTERS; i++) {
+  let x, z;
+  do {
+    x = (Math.random() - 0.5) * 350;
+    z = (Math.random() - 0.5) * 350;
+  } while (Math.abs(x) < 30 && Math.abs(z) < 30);
+  maakMonster(x, z);
+}
+
+// Boosts
+const speedBoosts = [];
+const jumpBoosts = [];
+
+function maakSpeedBoost(x, z) {
+  const boost = new THREE.Mesh(
+    new THREE.SphereGeometry(0.8, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 0.9 })
+  );
+  boost.position.set(x, 0.8, z);
+  scene.add(boost);
+  speedBoosts.push(boost);
+}
+
+function maakJumpBoost(x, z) {
+  const boost = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.2, 1.2),
+    new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.9 })
+  );
+  boost.position.set(x, 0.8, z);
+  scene.add(boost);
+  jumpBoosts.push(boost);
+}
+
+for (let i = 0; i < 12; i++) {
+  const x = (Math.random() - 0.5) * 350;
+  const z = (Math.random() - 0.5) * 350;
+  maakSpeedBoost(x, z);
+}
+
+for (let i = 0; i < 10; i++) {
+  const x = (Math.random() - 0.5) * 350;
+  const z = (Math.random() - 0.5) * 350;
+  maakJumpBoost(x, z);
+}
+
+// Sleutels
+const sleutels = [];
+
+function maakSleutel(x, z) {
+  const sleutel = new THREE.Mesh(
+    new THREE.TorusGeometry(0.6, 0.15, 8, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.8 })
+  );
+  sleutel.position.set(x, 1, z);
+  sleutel.rotation.x = Math.PI / 2;
+  scene.add(sleutel);
+  sleutels.push({ mesh: sleutel, x: x, z: z });
+}
+
+// Trofee
+let trophy = null;
+
+function spawnTrophy() {
+  const trophyGroup = new THREE.Group();
+  
+  const basis = new THREE.Mesh(
+    new THREE.CylinderGeometry(3, 4, 1, 16),
+    new THREE.MeshPhongMaterial({ color: 0x8b4513 })
+  );
+  basis.position.y = 0.5;
+  trophyGroup.add(basis);
+  
+  const beker = new THREE.Mesh(
+    new THREE.CylinderGeometry(2, 1.5, 4, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5, shininess: 100 })
+  );
+  beker.position.y = 3;
+  trophyGroup.add(beker);
+  
+  const ster = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 16, 16),
+    new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00, emissiveIntensity: 1 })
+  );
+  ster.position.y = 5.5;
+  trophyGroup.add(ster);
+  
+  trophyGroup.position.set(0, 0, 0);
+  scene.add(trophyGroup);
+  trophy = { mesh: trophyGroup };
+  
+  missionText.innerHTML = `
+    <strong style="color: #ffd700;">🏆 FINALE!</strong><br>
+    Pak de Trofee in centrum!
+  `;
+  
+  showLocation('🏆 TROFEE GESPAWNED!');
+}
+
+// Controls
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  
+  // R = RESET PARKOUR (als je vastzit!)
+  if (e.key.toLowerCase() === 'r' && isInParkour) {
+    player.set(-35, 2, 0);
+    playerVelocity.set(0, 0, 0);
+    showLocation('🔄 PARKOUR GERESET!<br/>Terug naar start!');
+  }
+  
+  // E = ga in pipe!
+  if (e.key.toLowerCase() === 'e' && nearPipe && !isInParkour) {
+    // GA IN DE PIPE!
+    isInParkour = true;
+    currentParkourLevel = nearPipe.parkourLevel;
+    exitPipePosition = { x: player.x, y: player.y, z: player.z };
+    
+    // Verberg buiten wereld
+    floor.visible = false;
+    gebouwen.forEach(g => g.mesh.visible = false);
+    warpPipes.forEach(p => p.mesh.visible = false);
+    monsters.forEach(m => m.mesh.visible = false);
+    speedBoosts.forEach(b => b.visible = false);
+    jumpBoosts.forEach(b => b.visible = false);
+    sleutels.forEach(s => s.mesh.visible = false);
+    if (trophy) trophy.mesh.visible = false;
+    
+    // Toon parkour level
+    currentParkourLevel.visible = true;
+    
+    // Teleporteer speler naar start
+    player.set(-35, 2, 0);
+    playerBall.position.copy(player);
+    
+    // Update achtergrond
+    scene.background = new THREE.Color(nearPipe.kleur === 0x00ff00 ? 0x001100 : nearPipe.kleur === 0xff0000 ? 0x110000 : 0x000011);
+    scene.fog = null;
+    
+    locationText.textContent = 'PARKOUR: ' + nearPipe.naam;
+    showLocation('🟢 IN DE PIPE!<br/>' + nearPipe.naam + '<br/>⭐ Verzamel de ster!');
+    
+  } else if (e.key.toLowerCase() === 'e' && isInParkour) {
+    // Check of bij exit pipe
+    const exitPipe = currentParkourLevel.userData.exitPipe;
+    const exitPos = new THREE.Vector3();
+    exitPipe.getWorldPosition(exitPos);
+    
+    const dist = player.distanceTo(exitPos);
+    if (dist < 4) {
+      // GA TERUG!
+      isInParkour = false;
+      currentParkourLevel.visible = false;
+      currentParkourLevel = null;
+      
+      // Toon buiten wereld weer
+      floor.visible = true;
+      gebouwen.forEach(g => g.mesh.visible = true);
+      warpPipes.forEach(p => p.mesh.visible = true);
+      monsters.forEach(m => m.mesh.visible = true);
+      speedBoosts.forEach(b => b.visible = true);
+      jumpBoosts.forEach(b => b.visible = true);
+      sleutels.forEach(s => s.mesh.visible = true);
+      if (trophy) trophy.mesh.visible = true;
+      
+      // Teleporteer terug
+      player.copy(exitPipePosition);
+      playerBall.position.copy(player);
+      
+      // Reset achtergrond
+      scene.background = new THREE.Color(0x87ceeb);
+      scene.fog = new THREE.Fog(0x87ceeb, 100, 400);
+      
+      locationText.textContent = 'Buiten - Downtown';
+      showLocation('🚪 Terug buiten!');
+    }
+  }
+});
+
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+let isDragging = false;
+let previousMouseX = 0;
+let yaw = 0;
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button === 0) {
+    isDragging = true;
+    previousMouseX = e.clientX;
+  }
+});
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const delta = e.clientX - previousMouseX;
+  yaw -= delta * 0.005;
+  previousMouseX = e.clientX;
+});
+
+let cameraDistance = 25;
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cameraDistance += e.deltaY * 0.02;
+  cameraDistance = Math.max(8, Math.min(50, cameraDistance));
+});
+
+// Physics
+let snelheid = 0.35;
+let jumpKracht = 0.35;
+const zwaartekracht = 0.02;
+let isOpGrond = true;
+let damageTimer = 0;
+
+function botstMetGebouw(pos) {
+  if (isInParkour) {
+    // Check muren in parkour level
+    if (!currentParkourLevel) return false;
+    
+    // Grenzen van de parkour kamer (50 units elk kant)
+    const grens = 48; // Beetje binnen de muren
+    if (pos.x > grens || pos.x < -grens || pos.z > grens || pos.z < -grens) {
+      return true; // Botst met muur!
+    }
+    return false;
+  }
+  
+  const playerRadius = 1.5;
+  for (let gebouw of gebouwen) {
+    if (!gebouw.mesh.visible) continue;
+    
+    const halfBreedte = gebouw.breedte / 2;
+    const halfDiepte = gebouw.diepte / 2;
+    
+    const closestX = Math.max(gebouw.x - halfBreedte, Math.min(pos.x, gebouw.x + halfBreedte));
+    const closestZ = Math.max(gebouw.z - halfDiepte, Math.min(pos.z, gebouw.z + halfDiepte));
+    
+    const distanceX = pos.x - closestX;
+    const distanceZ = pos.z - closestZ;
+    const distanceSquared = (distanceX * distanceX) + (distanceZ * distanceZ);
+    
+    if (distanceSquared < (playerRadius * playerRadius)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function checkPlatformCollision() {
+  if (!isInParkour || !currentParkourLevel) return null;
+  
+  const platforms = currentParkourLevel.children.filter(
+    child => child.geometry && child.geometry.type === 'BoxGeometry' && 
+    child.geometry.parameters.height === 1
+  );
+  
+  for (let platform of platforms) {
+    const worldPos = new THREE.Vector3();
+    platform.getWorldPosition(worldPos);
+    
+    const halfWidth = platform.geometry.parameters.width / 2;
+    const halfDepth = platform.geometry.parameters.depth / 2;
+    
+    // Check of speler BOVEN platform is (binnen grenzen)
+    if (player.x > worldPos.x - halfWidth && player.x < worldPos.x + halfWidth &&
+        player.z > worldPos.z - halfDepth && player.z < worldPos.z + halfDepth) {
+      
+      // Check of speler vlak boven of op het platform is
+      const platformTop = worldPos.y + 0.5;
+      if (player.y <= platformTop + 0.6 && player.y >= platformTop - 0.5 && playerVelocity.y <= 0) {
+        return platformTop;
+      }
+    }
+  }
+  return null;
+}
+
+function updateHealth(amount) {
+  playerHealth = Math.max(0, Math.min(100, playerHealth + amount));
+  healthText.textContent = Math.floor(playerHealth);
+  healthBar.style.width = playerHealth + '%';
+  
+  if (playerHealth <= 0) {
+    alert('Game Over! 💀\nScore: ' + (monstersDefeated * 100 + totalBoosts * 50 + starsCollected * 500));
+    location.reload();
+  }
+}
+
+let animationTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  animationTime += 0.01;
+  damageTimer = Math.max(0, damageTimer - 1);
+
+  const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+  let move = new THREE.Vector3();
+  if (keys['z'] || keys['arrowup']) move.add(forward);      // Z of Pijl Omhoog = Vooruit
+  if (keys['s'] || keys['arrowdown']) move.sub(forward);    // S of Pijl Omlaag = Achteruit
+  if (keys['q'] || keys['arrowleft']) move.add(right);      // Q of Pijl Links = LINKS (was sub, nu add!)
+  if (keys['d'] || keys['arrowright']) move.sub(right);     // D of Pijl Rechts = RECHTS (was add, nu sub!)
+
+  if (move.length() > 0) {
+    move.normalize().multiplyScalar(snelheid);
+    let nieuwePos = player.clone().add(move);
+    nieuwePos.y = player.y;
+
+    if (!botstMetGebouw(nieuwePos)) {
+      player.x = nieuwePos.x;
+      player.z = nieuwePos.z;
+    }
+  }
+
+  if (keys[' '] && isOpGrond) {
+    playerVelocity.y = jumpKracht;
+    isOpGrond = false;
+  }
+
+  // Zwaartekracht - ALTIJD als je niet op de grond bent!
+  if (!isOpGrond) {
+    playerVelocity.y -= zwaartekracht;
+  }
+
+  player.y += playerVelocity.y;
+
+  // Platform collision
+  const platformY = checkPlatformCollision();
+  if (platformY !== null) {
+    player.y = platformY;
+    playerVelocity.y = 0;
+    isOpGrond = true;
+  } else {
+    // NIET op een platform - zwaartekracht werkt!
+    isOpGrond = false;
+    
+    // Check grond/vloer
+    if (player.y <= 1 && !isInParkour) {
+      player.y = 1;
+      playerVelocity.y = 0;
+      isOpGrond = true;
+    } else if (player.y <= -4.5 && isInParkour) {
+      // STA OP DE VLOER in parkour!
+      player.y = -4.5;
+      playerVelocity.y = 0;
+      isOpGrond = true;
+    }
+  }
+
+  // Als je op de vloer bent in parkour maar niet op een platform = reset!
+  if (isInParkour && player.y <= -4 && !checkPlatformCollision()) {
+    // Je staat op de vloer maar niet op een platform - RESET!
+    setTimeout(() => {
+      if (isInParkour && player.y <= -3) {
+        player.set(-35, 2, 0);
+        playerVelocity.set(0, 0, 0);
+        updateHealth(-10);
+        showLocation('💀 RESET! -10 HP<br/>Terug naar start!');
+      }
+    }, 1000); // 1 seconde om te proberen op een platform te komen
+  }
+
+  playerBall.position.copy(player);
+
+  // Check pipes
+  if (!isInParkour) {
+    nearPipe = null;
+    for (let pipe of warpPipes) {
+      const dist = Math.sqrt(Math.pow(player.x - pipe.x, 2) + Math.pow(player.z - pipe.z, 2));
+      if (dist < 5) {
+        nearPipe = pipe;
+        warpIndicator.style.display = 'block';
+        pipe.glow.material.opacity = 0.4 + Math.sin(animationTime * 5) * 0.2;
+        break;
+      } else {
+        pipe.glow.material.opacity = 0.3;
+      }
+    }
+    
+    if (!nearPipe) {
+      warpIndicator.style.display = 'none';
+    }
+  } else {
+    warpIndicator.style.display = 'none';
+    
+    // Check exit pipe
+    const exitPipe = currentParkourLevel.userData.exitPipe;
+    const exitPos = new THREE.Vector3();
+    exitPipe.getWorldPosition(exitPos);
+    const dist = player.distanceTo(exitPos);
+    
+    if (dist < 4) {
+      warpIndicator.textContent = '🚪 Druk E om terug te gaan!';
+      warpIndicator.style.display = 'block';
+      warpIndicator.style.background = 'rgba(255, 255, 0, 0.9)';
+    }
+    
+    // Check ster
+    if (!currentParkourLevel.userData.sterVerzameld) {
+      const ster = currentParkourLevel.userData.ster;
+      const sterPos = new THREE.Vector3();
+      ster.getWorldPosition(sterPos);
+      
+      ster.rotation.y += 0.03;
+      sterPos.y += Math.sin(animationTime * 3) * 0.3;
+      ster.position.y = sterPos.y;
+      
+      const sterDist = player.distanceTo(sterPos);
+      if (sterDist < 3) {
+        currentParkourLevel.userData.sterVerzameld = true;
+        currentParkourLevel.remove(ster);
+        starsCollected++;
+        starCount.textContent = starsCollected;
+        showLocation('⭐ STER VERZAMELD! +500 punten!');
+      }
+    }
+  }
+
+  // Animeer pipes
+  warpPipes.forEach(pipe => {
+    pipe.mesh.rotation.x += 0.005;
+  });
+
+  // Monsters (alleen buiten)
+  if (!isInParkour) {
+    monsters.forEach((monster, index) => {
+      if (!monster.mesh.visible) return;
+      
+      const distToPlayer = Math.sqrt(
+        Math.pow(player.x - monster.x, 2) + 
+        Math.pow(player.z - monster.z, 2)
+      );
+      
+      if (distToPlayer < 35) {
+        const angleToPlayer = Math.atan2(player.x - monster.x, player.z - monster.z);
+        monster.richting = angleToPlayer;
+      } else if (Math.random() < 0.02) {
+        monster.richting = Math.random() * Math.PI * 2;
+      }
+      
+      const moveX = Math.sin(monster.richting) * monster.snelheid;
+      const moveZ = Math.cos(monster.richting) * monster.snelheid;
+      
+      monster.x += moveX;
+      monster.z += moveZ;
+      monster.mesh.position.set(monster.x, 1.2 + Math.sin(animationTime * 3 + index) * 0.1, monster.z);
+      monster.mesh.rotation.y += 0.02;
+      
+      if (distToPlayer < 2.5 && damageTimer === 0) {
+        updateHealth(-5);
+        damageTimer = 60;
+        playerBall.material.color.setHex(0xff6666);
+        setTimeout(() => playerBall.material.color.setHex(0xff0000), 200);
+      }
+      
+      if (distToPlayer < 2.5 && player.y > 2 && playerVelocity.y < 0) {
+        monster.health--;
+        playerVelocity.y = 0.3;
+        
+        if (monster.health <= 0) {
+          scene.remove(monster.mesh);
+          monsters.splice(index, 1);
+          monstersDefeated++;
+          monsterCount.textContent = monstersDefeated;
+          
+          if (keysCollected < 5 && Math.random() < 0.4) {
+            maakSleutel(monster.x, monster.z);
+          }
+        }
+      }
+    });
+  }
+
+  // Boosts
+  for (let i = speedBoosts.length - 1; i >= 0; i--) {
+    if (!speedBoosts[i].visible) continue;
+    let b = speedBoosts[i];
+    b.rotation.y += 0.02;
+    b.position.y = 0.8 + Math.sin(animationTime * 2) * 0.2;
+    
+    if (player.distanceTo(b.position) < 1.8) {
+      snelheid = 0.7;
+      scene.remove(b);
+      speedBoosts.splice(i, 1);
+      totalBoosts++;
+      boostCount.textContent = totalBoosts;
+      speedStatus.textContent = 'SUPER! ⚡';
+      speedBox.classList.add('boost-active');
+      setTimeout(() => {
+        snelheid = 0.35;
+        speedStatus.textContent = 'Normaal';
+        speedBox.classList.remove('boost-active');
+      }, 8000);
+    }
+  }
+
+  for (let i = jumpBoosts.length - 1; i >= 0; i--) {
+    if (!jumpBoosts[i].visible) continue;
+    let b = jumpBoosts[i];
+    b.rotation.x += 0.02;
+    b.rotation.y += 0.02;
+    b.position.y = 0.8 + Math.sin(animationTime * 2 + 1) * 0.2;
+    
+    if (player.distanceTo(b.position) < 1.8) {
+      jumpKracht = 0.65;
+      scene.remove(b);
+      jumpBoosts.splice(i, 1);
+      totalBoosts++;
+      boostCount.textContent = totalBoosts;
+      jumpStatus.textContent = 'MEGA! 🚀';
+      jumpBox.classList.add('boost-active');
+      setTimeout(() => {
+        jumpKracht = 0.35;
+        jumpStatus.textContent = 'Normaal';
+        jumpBox.classList.remove('boost-active');
+      }, 8000);
+    }
+  }
+
+  // Sleutels
+  for (let i = sleutels.length - 1; i >= 0; i--) {
+    const s = sleutels[i];
+    if (!s.mesh.visible) continue;
+    s.mesh.rotation.z += 0.02;
+    s.mesh.position.y = 1 + Math.sin(animationTime * 2) * 0.2;
+    
+    const dist = Math.sqrt(Math.pow(player.x - s.x, 2) + Math.pow(player.z - s.z, 2));
+    if (dist < 2) {
+      scene.remove(s.mesh);
+      sleutels.splice(i, 1);
+      keysCollected++;
+      keyCount.textContent = keysCollected;
+      
+      if (keysCollected >= 5 && !trophySpawned) {
+        trophySpawned = true;
+        spawnTrophy();
+      }
+    }
+  }
+
+  // Trofee
+  if (trophy && trophy.mesh.visible && player.distanceTo(trophy.mesh.position) < 5) {
+    document.getElementById('finalStars').textContent = starsCollected;
+    document.getElementById('finalMonsters').textContent = monstersDefeated;
+    document.getElementById('finalBoosts').textContent = totalBoosts;
+    document.getElementById('finalScore').textContent = (monstersDefeated * 100) + (totalBoosts * 50) + (keysCollected * 200) + (starsCollected * 500);
+    victoryScreen.style.display = 'flex';
+  }
+
+  if (trophy && trophy.mesh.visible) {
+    trophy.mesh.rotation.y += 0.01;
+    trophy.mesh.position.y = Math.sin(animationTime) * 0.5;
+  }
+
+  // Camera
+  const camX = player.x - Math.sin(yaw) * cameraDistance;
+  const camZ = player.z - Math.cos(yaw) * cameraDistance;
+  camera.position.set(camX, player.y + cameraDistance * 0.6, camZ);
+  camera.lookAt(player.x, player.y + 1, player.z);
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = gameContainer.clientWidth / gameContainer.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(gameContainer.clientWidth, gameContainer.clientHeight);
+});
+</script>
+</body>
+</html>
